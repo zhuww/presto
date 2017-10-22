@@ -55,6 +55,7 @@ def bary_to_topo(infofilenm, rawdatafile=False, ephem="DE200"):
        elif (obs.telescope == 'Arecibo'):  tel = 'AO'
        elif (obs.telescope == 'MMT'):  tel = 'MT'
        elif (obs.telescope == 'GBT'):  tel = 'GB'
+       elif (obs.telescope == 'FAST'):  tel = 'FA'
        else:
           print "Telescope not recognized."
           return 0
@@ -75,6 +76,7 @@ def bary_to_topo(infofilenm, rawdatafile=False, ephem="DE200"):
        elif (rawdatafile.specinfo.telescope == 'Arecibo'):  tel = 'AO'
        elif (rawdatafile.specinfo.telescope == 'MMT'):  tel = 'MT'
        elif (rawdatafile.specinfo.telescope == 'GBT'):  tel = 'GB'
+       elif (rawdatafile.specinfo.telescope == 'FAST'):  tel = 'FA'
        else:
           print "Telescope not recognized."
           return 0

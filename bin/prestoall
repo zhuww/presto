@@ -1,0 +1,218 @@
+#!/usr/bin/python
+SUM = sum
+import os, sys, glob, re
+import sifting
+from commands import getstatusoutput as getoutput
+import numpy as np
+from threadit import spamit
+import tempfile
+import shutil
+
+Nsub = 64 #32 subbands
+Nbin = 64 #64 sub integration
+Tres = 0.512 #ms
+npfact = 1
+zmax = 0
+N_thread = 20
+zerodm = False
+rfifind_inttime = 1
+invert = False
+sigma_threshold = 10.
+min_period = 0.001 #0.1
+max_period = 20. #15
+clobber = True
+maskfile = False
+inverttag = ''
+
+
+def dorfifind(filename):
+    #cwd = os.getcwd()
+    global maskfile
+    rootname = '.'.join(filename.split('.')[:-1])
+    try:
+        #if not os.access(workdir, os.F_OK):
+            #os.mkdir(workdir)
+        #os.chdir(workdir)
+        logfile  = open('rfifind.log', 'wt')
+        rfifind = "rfifind -time %d -o %s ../%s" % (rfifind_inttime, rootname, filename)
+        print rfifind
+        status, output = getoutput(rfifind)
+        logfile.write(output)
+        logfile.close()
+        maskfile = rootname + '_rfifind.mask'
+        statfile = rootname + '_rfifind.stats'
+        #os.chdir(cwd)
+    except:
+        print 'failed at rfifind.'
+        print sys.exc_info()[0]
+        #os.chdir(cwd)
+        sys.exit(0)
+
+
+def accelsearch(f):
+    searchcmd = "accelsearch -zmax %d -sigma %f -flo %f -fhi %f %s" % (zmax, sigma_threshold, 1./max_period, 1./min_period, f)
+    status, output = getoutput(searchcmd)
+    print searchcmd, status
+    return output
+
+def ACCEL_sift(zmax):
+    '''
+    The following code come from PRESTO's ACCEL_sift.py
+    '''
+
+    globaccel = "*ACCEL_%d" % zmax
+    globinf = "*DM*.inf"
+    # In how many DMs must a candidate be detected to be considered "good"
+    min_num_DMs = 2
+    # Lowest DM to consider as a "real" pulsar
+    low_DM_cutoff = 2.0
+    # Ignore candidates with a sigma (from incoherent power summation) less than this
+    sifting.sigma_threshold = sigma_threshold
+    # Ignore candidates with a coherent power less than this
+    sifting.c_pow_threshold = 10.0
+
+    # If the birds file works well, the following shouldn't
+    # be needed at all...  If they are, add tuples with the bad
+    # values and their errors.
+    #                (ms, err)
+    sifting.known_birds_p = []
+    #                (Hz, err)
+    sifting.known_birds_f = []
+
+    # The following are all defined in the sifting module.
+    # But if we want to override them, uncomment and do it here.
+    # You shouldn't need to adjust them for most searches, though.
+
+    # How close a candidate has to be to another candidate to                
+    # consider it the same candidate (in Fourier bins)
+    sifting.r_err = 1.1
+    # Shortest period candidates to consider (s)
+    sifting.short_period = min_period
+    # Longest period candidates to consider (s)
+    sifting.long_period = max_period
+    # Ignore any candidates where at least one harmonic does exceed this power
+    sifting.harm_pow_cutoff = 8.0
+
+    #--------------------------------------------------------------
+
+    # Try to read the .inf files first, as _if_ they are present, all of
+    # them should be there.  (if no candidates are found by accelsearch
+    # we get no ACCEL files...
+    inffiles = glob.glob(globinf)
+    candfiles = glob.glob(globaccel)
+    # Check to see if this is from a short search
+    #if len(re.findall("_[0-9][0-9][0-9]M_" , inffiles[0])):
+    #    dmstrs = [x.split("DM")[-1].split("_")[0] for x in candfiles]
+    #else:
+    dmstrs = [x.split("DM")[-1].split(".inf")[0] for x in inffiles]
+    dms = map(float, dmstrs)
+    dms.sort()
+    dmstrs = ["%.2f"%x for x in dms]
+
+    # Read in all the candidates
+    cands = sifting.read_candidates(candfiles)
+    #candslst = spamit(sifting.read_candidates, [[candfile] for candfile in candfiles], num_threads=N_thread)
+    #cands = SUM(candslst, [])
+
+    # Remove candidates that are duplicated in other ACCEL files
+    if len(cands):
+        cands = sifting.remove_duplicate_candidates(cands)
+
+    # Remove candidates with DM problems
+    if len(cands):
+        cands = sifting.remove_DM_problems(cands, min_num_DMs, dmstrs, low_DM_cutoff)
+
+    # Remove candidates that are harmonically related to each other
+    # Note:  this includes only a small set of harmonics
+    if len(cands):
+        try:
+            newcands = sifting.remove_harmonics(cands)
+            cands = newcands
+        except IndexError:
+            pass
+
+    # Write candidates to STDOUT
+    if len(cands):
+        cands.sort(sifting.cmp_sigma)
+        #for cand in cands[:1]:
+            #print cand.filename, cand.candnum, cand.p, cand.DMstr
+        #sifting.write_candlist(cands)
+    return cands
+
+def foldproc(cand, Nsub=Nsub, Nbin=Nbin):
+    global rootname, maskfile
+    slowflag = ''
+    if cand.p > 0.4:
+	slowflag = '-slow'
+        Nsub = 128
+        Nbin = 128
+        Npart = '-npart %d' % 2**int(np.log(52.4228 / cand.p)/np.log(2))
+    else:
+        Npart = ''
+    #print '***', maskfile
+    if maskfile:
+	foldcmd = "prepfold %(invert)s %(slowflag)s %(Npart)s -n %(Nbin)d -nsub %(Nsub)d -dm %(dm)f -p %(period)f -npfact %(npfact)d %(filfile)s -mask ../%(maskfile)s -o %(outfile)s -noxwin -nodmsearch -nopsearch" % {
+                'slowflag':slowflag, 'Npart':Npart, 'Nbin':Nbin, 'Nsub':Nsub, 'dm':cand.DM,  'period':cand.p, 'npfact':npfact, 'filfile':filename, 'outfile':rootname+'_DM'+cand.DMstr, 'invert':inverttag, 'maskfile':maskfile} #full plots
+	print foldcmd
+    else:
+	foldcmd = "prepfold %(invert)s %(slowflag)s -n %(Nbin)d -nsub %(Nsub)d -dm %(dm)f -p %(period)f -npfact %(npfact)d %(filfile)s -o %(outfile)s -noxwin -nodmsearch -nopsearch " % {
+	    'slowflag':slowflag, 'Nbin':Nbin, 'Nsub':Nsub, 'dm':cand.DM,  'period':cand.p, 'npfact':npfact, 'filfile':filename, 'outfile':rootname+'_DM'+cand.DMstr, 'invert':inverttag } #full plots
+	print foldcmd
+    #os.system(foldcmd)
+    status, output = getoutput(foldcmd)
+    return output
+
+class hamsterball(object):
+
+    def __init__(self):
+        self.cwd = os.getcwd()
+        self.tmpdir = tempfile.mkdtemp(prefix=self.cwd+'/tmp')
+
+    def run(self, infiles, outfiles, proc, args):
+        os.chdir(self.tmpdir)
+        for infile in infiles:
+            os.symlink(self.cwd+'/'+infile, self.tmpdir+'/'+infile)
+            #os.system("ln -s %s %s" % (self.cwd+'/'+infile, self.tmpdir+'/'+infile))
+            #print self.cwd+'/'+infile, self.tmpdir+'/'+infile
+        result = proc(*args)
+        for infile in infiles:
+            os.remove(self.tmpdir+'/'+infile)
+        for outpat in outfiles:
+            for outfile in glob.glob(outpat):
+                shutil.move(outfile, self.cwd+'/'+outfile)
+        os.chdir(self.cwd)
+        self.cleanup()
+        return result
+
+    def cleanup(self):
+        shutil.rmtree(self.tmpdir)
+
+def hamster(infiles, outfiles, proc, args):
+    newball = hamsterball()
+    return newball.run(infiles, outfiles,  proc, args)
+
+
+filename = sys.argv[2]
+workdir = sys.argv[1]
+rootname = '.'.join(filename.split('.')[:-1])
+
+#try:
+os.chdir(workdir)
+print 'doing rfifind.'
+dorfifind(filename)
+print 'doing accelsearch.'
+print os.getcwd()
+fftflist = glob.glob('*.fft')
+#outputs = spamit(hamster, [[[filename, '*.fft', '*.inf'], ['*ACCEL*'], accelsearch, [f] ] for f in fftflist])
+outputs = spamit(accelsearch, [ [f] for f in fftflist])
+print 'doing accel_sift.'
+cands = ACCEL_sift(zmax)
+print 'doing folding.'
+outputs = spamit(hamster, [[[filename], ['*.pfd'], foldproc, [cand]] for cand in cands], num_threads=N_thread)
+print 'ranking pfds with PICS'
+outputs = getoutput('python /home/psr/software/ubc_AI//quickclf.py; sort -r -k 2 clfresult.txt > tmp; mv tmp clfresult.txt')
+#print outputs
+
+
+
+

@@ -237,6 +237,9 @@ void telescope_to_tempocode(char *inname, char *outname, char *obscode)
     } else if (strcmp(scope, "meerkat") == 0 ) {
         strcpy(obscode, "MK");
         strcpy(outname, "MeerKAT");
+    } else if (strcmp(scope, "fast") == 0 ) {
+        strcpy(obscode, "FA");
+        strcpy(outname, "FAST");
     } else if (strcmp(scope, "k7") == 0 ) {
         strcpy(obscode, "K7");
         strcpy(outname, "KAT-7");

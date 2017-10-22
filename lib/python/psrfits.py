@@ -179,7 +179,10 @@ class PsrfitsFile(object):
                 data: 2D numpy array
         """
         # Calculate starting subint and ending subint
-        startsub = int(startsamp/self.nsamp_per_subint)
+        startsamp = int(startsamp)
+        self.nsamp_per_subint=int(self.nsamp_per_subint)
+        startsub = int(startsamp/int(self.nsamp_per_subint))
+        #print '*** bebug:', startsamp , startsub, self.nsamp_per_subint
         skip = startsamp - (startsub*self.nsamp_per_subint)
         endsub = int((startsamp+N)/self.nsamp_per_subint)
         trunc = ((endsub+1)*self.nsamp_per_subint) - (startsamp+N)
@@ -314,7 +317,7 @@ class SpectraInfo:
             self.bits_per_sample = subint['NBITS']
             self.num_subint[ii] = subint['NAXIS2']
             self.start_subint[ii] = subint['NSUBOFFS']
-            self.time_per_subint = self.dt * self.spectra_per_subint
+            self.time_per_subint = self.dt * int(self.spectra_per_subint)
 
             # This is the MJD offset based on the starting subint number
             MJDf = (self.time_per_subint * self.start_subint[ii])/psr_utils.SECPERDAY
@@ -435,7 +438,7 @@ class SpectraInfo:
             # Comute the samples per file and the amount of padding
             # that the _previous_ file has
             self.num_pad[ii] = 0
-            self.num_spec[ii] = self.spectra_per_subint * self.num_subint[ii]
+            self.num_spec[ii] = int(self.spectra_per_subint) * self.num_subint[ii]
             if ii>0:
                 if self.start_spec[ii] > self.N: # Need padding
                     self.num_pad[ii-1] = self.start_spec[ii] - self.N

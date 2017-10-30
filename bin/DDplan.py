@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from numpy import *
-from Pgplot import *
+#from Pgplot import *
 
 class observation:
     def __init__(self, dt, f_ctr, BW, numchan, cDM):
@@ -100,6 +100,7 @@ class dedisp_method:
                            BW_smear(dDM, self.obs.BW, self.obs.f_ctr)**2.0 +
                            self.sub_smearing**2.0)
         return 0.001*other_smear/self.obs.chanwidth*0.0001205*self.obs.f_ctr**3.0
+    '''
     def plot(self, work_fract):
         DMspan = self.DMs[-1]-self.DMs[0]
         loDM  = self.DMs[0]  + DMspan*0.02
@@ -129,6 +130,7 @@ class dedisp_method:
                            "%g (%d)" % (self.dsubDM, self.numprepsub))
         ppgplot.pgsci(1)
         ppgplot.pgsch(1.0)
+    '''
     def __str__(self):
         if (self.numsub):
             return "%9.3f  %9.3f  %6.2f    %4d  %6.2f  %6d  %6d  %6d " % \
@@ -299,6 +301,7 @@ def dm_steps(loDM, hiDM, obs, cohdm=0.0, numsub=0, ok_smearing=0.0, device="/XWI
     tot_smear = total_smear(DMs, allow_dDMs[0], obs.dt, obs.f_ctr,
                             obs.BW, obs.numchan, allow_dDMs[0], cohdm, 0)
     # Plot them
+    '''
     plotxy(log10(tot_smear), DMs, color='orange', logy=1, rangex=[loDM, hiDM],
            rangey=[log10(0.3*min(tot_smear)), log10(2.5*max(tot_smear))],
            labx="Dispersion Measure (pc/cm\u3\d)", laby="Smearing (ms)",
@@ -342,6 +345,7 @@ def dm_steps(loDM, hiDM, obs, cohdm=0.0, numsub=0, ok_smearing=0.0, device="/XWI
         ppgplot.pgsci(12)
         ppgplot.pgmtxt("b", 1*dy, 0.97, 1.0, "Subband Stepsize Smearing (# passes)")
     ppgplot.pgsci(11)
+    '''
     
     if (numsub):
         print "\n  Low DM    High DM     dDM  DownSamp  dsubDM   #DMs  DMs/call  calls  WorkFract"
@@ -349,9 +353,9 @@ def dm_steps(loDM, hiDM, obs, cohdm=0.0, numsub=0, ok_smearing=0.0, device="/XWI
         print "\n  Low DM    High DM     dDM  DownSamp   #DMs  WorkFract"
     for method, fract in zip(methods, work_fracts):
         print method, "  %.4g" % fract
-        method.plot(fract)
+        #method.plot(fract)
     print "\n\n"
-    closeplot()
+    #closeplot()
     
 def usage():
     print """

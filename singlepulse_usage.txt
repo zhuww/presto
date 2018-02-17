@@ -1,0 +1,4 @@
+singlepulse_search.py *.dat
+rrattrap.py --inffile FP20170912_0-1GHz__0126_low_rfifind.inf *.singlepulse
+make_spd.py FP20170912_0-1GHz__0126_low.fits  --groupsfile=groups.txt
+--maskfile=FP20170912_0-1GHz__0126_low_rfifind.mask *.singlepulse

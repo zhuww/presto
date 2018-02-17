@@ -1,5 +1,6 @@
 import numpy as Num
-import numpy.fft as FFTimport Pgplot, ppgplot, bisect, sinc_interp, parfile
+import numpy.fft as FFT
+import Pgplot, ppgplot, bisect, sinc_interp, parfile
 from scipy.special import ndtr, ndtri, chdtrc, chdtri, fdtr, i0, kolmogorov
 from scipy.optimize import leastsq
 import scipy.optimize.zeros as zeros

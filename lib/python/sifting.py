@@ -1118,27 +1118,30 @@ def candlist_from_candfile(filename, trackbad=False, trackdupes=False):
     for line in candfile:
         # Identify the candidates in the top of the file
         if fund_re.match(line):
-            split_line = line.split()
-            candnum   = int(split_line[0])
-            if len(cands) and len(split_line[0])==4 and cands[-1].candnum >= 9999:
-                candnum = last_candnum + 1
-            sigma     = float(split_line[1])
-            i_pow_det = float(split_line[2])
-            c_pow     = float(split_line[3])
-            numharm   = int(split_line[4])
-            bin       = float(split_line[7].split("(")[0])
-            z         = float(split_line[9].split("(")[0])
-            f = bin / tobs    # Spin freq in hz
-            p = 1.0 / f       # Spin period in sec
+            try:
+                split_line = line.split()
+                candnum   = int(split_line[0])
+                if len(cands) and len(split_line[0])==4 and cands[-1].candnum >= 9999:
+                    candnum = last_candnum + 1
+                sigma     = float(split_line[1])
+                i_pow_det = float(split_line[2])
+                c_pow     = float(split_line[3])
+                numharm   = int(split_line[4])
+                bin       = float(split_line[7].split("(")[0])
+                z         = float(split_line[9].split("(")[0])
+                f = bin / tobs    # Spin freq in hz
+                p = 1.0 / f       # Spin period in sec
 
-            # Add it to the candidates list
-            DMstr = DM_re.search(filename).groups()[0]
-            cands.append(Candidate(candnum, sigma, numharm,
-                                          i_pow_det, c_pow, bin, z, 
-                                          DMstr, filename, tobs))
-            candnums.append(candnum)
-            last_candnum = candnum
-            continue
+                # Add it to the candidates list
+                DMstr = DM_re.search(filename).groups()[0]
+                cands.append(Candidate(candnum, sigma, numharm,
+                                              i_pow_det, c_pow, bin, z, 
+                                              DMstr, filename, tobs))
+                candnums.append(candnum)
+                last_candnum = candnum
+                continue
+            except:
+                continue
 
         # Parse the harmonic powers
         elif harms_re.match(line):
@@ -1217,12 +1220,15 @@ def read_candidates(filenms, prelim_reject=True, track=False):
     if filenms:
         print "\nReading candidates from %d files...." % len(filenms)
         for ii, filenm in enumerate(filenms):
-            curr_candlist = candlist_from_candfile(filenm, trackbad=track, trackdupes=track)
-            if prelim_reject:
-                curr_candlist.default_rejection()
-            candlist.extend(curr_candlist)
-            sys.stdout.write(" Read %d of %d files (%d cands)\r" % (ii+1, numfiles, len(candlist)))
-            sys.stdout.flush()
+            try:
+                curr_candlist = candlist_from_candfile(filenm, trackbad=track, trackdupes=track)
+                if prelim_reject:
+                    curr_candlist.default_rejection()
+                candlist.extend(curr_candlist)
+                sys.stdout.write(" Read %d of %d files (%d cands)\r" % (ii+1, numfiles, len(candlist)))
+                sys.stdout.flush()
+            except:
+                sys.stdout.write(" Read candidates from file %s failed." % filenm)
         print "\nDone"
     else:
         print "Error:  There are no candidate files to read!"
